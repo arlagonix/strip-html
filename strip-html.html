@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clipboard → HTML</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      background: #f2f2f2;
+      color: #111;
+      font-family: 'Courier New', Courier, monospace;
+      padding: 32px 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .wrapper {
+      /* max-width: 1440px; */
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── Header ── */
+    header {
+      margin-bottom: 32px;
+      flex-shrink: 0;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #111;
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    /* ── Panels ── */
+    .panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .panel-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #999;
+    }
+
+    /* ── Paste box ── */
+    #paste-box {
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+      padding: 16px;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      color: #111;
+      font-family: inherit;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      overflow-y: auto;
+      outline: none;
+      transition: border-color 0.15s;
+      cursor: text;
+    }
+
+    #paste-box:focus {
+      border-color: #bbb;
+    }
+
+    #paste-box:empty::before {
+      content: 'Paste rich text here…';
+      color: #bbb;
+      pointer-events: none;
+    }
+
+    /* ── Right panel ── */
+    .right-panel-body {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 0 16px;
+      flex-shrink: 0;
+    }
+
+    .tab {
+      padding: 10px 16px;
+      font-family: inherit;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #aaa;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .tab:hover {
+      color: #555;
+    }
+
+    .tab.active {
+      color: #111;
+      border-bottom-color: #111;
+    }
+
+    /* ── Tab content ── */
+    .tab-content {
+      display: none;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    #html-output,
+    #minified-output,
+    #markdown-output {
+      flex: 1;
+      width: 100%;
+      padding: 16px;
+      background: transparent;
+      border: none;
+      color: #555;
+      font-family: inherit;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      resize: none;
+      outline: none;
+    }
+
+    #preview-frame {
+      flex: 1;
+      width: 100%;
+      border: none;
+      background: #fff;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      font-family: inherit;
+      font-size: 0.72rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      border: 1px solid #e0e0e0;
+      background: #fff;
+      color: #888;
+    }
+
+    .btn:hover {
+      background: #f7f7f7;
+      color: #111;
+      border-color: #ccc;
+    }
+
+    .btn:active {
+      background: #f0f0f0;
+    }
+
+    .btn.success {
+      color: #16a34a;
+      border-color: #16a34a;
+    }
+
+    /* ── Status bar ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #e8e8e8;
+      font-size: 0.72rem;
+      color: #bbb;
+      flex-shrink: 0;
+    }
+
+    .status-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ddd;
+      margin-right: 8px;
+      transition: background 0.2s;
+    }
+
+    .status-dot.active {
+      background: #16a34a;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+
+    <header>
+      <h1>Clipboard → HTML</h1>
+      <p class="subtitle">Paste rich text on the left. Cleaned HTML and preview appear on the right.</p>
+    </header>
+
+    <div class="panels">
+
+      <!-- Left panel: paste target -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-label">Input</span>
+          <button class="btn" id="clear-btn">✕ Clear</button>
+        </div>
+        <div id="paste-box" contenteditable="true" tabindex="0"></div>
+      </div>
+
+      <!-- Right panel: tabs -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-label">Output</span>
+          <button class="btn" id="copy-btn">⎘ Copy</button>
+        </div>
+
+        <div class="right-panel-body">
+          <div class="tabs">
+            <button class="tab active" data-tab="html">HTML</button>
+            <button class="tab" data-tab="minified">Minified</button>
+            <button class="tab" data-tab="markdown">Markdown</button>
+            <button class="tab" data-tab="preview">Preview</button>
+          </div>
+
+          <div class="tab-content active" data-tab="html">
+            <textarea id="html-output" readonly spellcheck="false"></textarea>
+          </div>
+
+          <div class="tab-content" data-tab="minified">
+            <textarea id="minified-output" readonly spellcheck="false"></textarea>
+          </div>
+
+          <div class="tab-content" data-tab="markdown">
+            <textarea id="markdown-output" readonly spellcheck="false"></textarea>
+          </div>
+
+          <div class="tab-content" data-tab="preview">
+            <iframe id="preview-frame" sandbox="allow-same-origin"></iframe>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    const pasteBox       = document.getElementById('paste-box');
+    const htmlOutput     = document.getElementById('html-output');
+    const minifiedOutput = document.getElementById('minified-output');
+    const markdownOutput = document.getElementById('markdown-output');
+    const copyBtn        = document.getElementById('copy-btn');
+    const clearBtn       = document.getElementById('clear-btn');
+    const statusDot      = document.getElementById('status-dot');
+    const statusText     = document.getElementById('status-text');
+    const charCount      = document.getElementById('char-count');
+    const previewFrame   = document.getElementById('preview-frame');
+
+    // ── Minimal styles injected into preview iframe ──────────────────────────
+    const PREVIEW_STYLES = `
+      <style>
+        body { font-family: sans-serif; font-size: 14px; line-height: 1.6; padding: 16px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+        th { background: #f5f5f5; font-weight: 600; }
+      </style>
+    `;
+
+    // ── Attribute whitelist ──────────────────────────────────────────────────
+    const ATTR_WHITELIST = {
+      'a':   ['href'],
+      'img': ['src', 'alt', 'width', 'height'],
+      'td':  ['colspan', 'rowspan'],
+      'th':  ['colspan', 'rowspan'],
+      'ol':  ['type'],
+      'li':  ['value'],
+    };
+
+    const VOID_ELEMENTS = new Set([
+      'area','base','br','col','embed','hr','img',
+      'input','link','meta','param','source','track','wbr'
+    ]);
+
+    const TABLE_CELL_ELEMENTS = new Set(['td', 'th']);
+
+    const BLOCK_ELEMENTS = new Set([
+      'address','article','aside','blockquote','details','dialog',
+      'dd','div','dl','dt','fieldset','figcaption','figure','footer',
+      'form','h1','h2','h3','h4','h5','h6','header','hgroup','hr',
+      'li','main','nav','ol','p','pre','section','summary','table',
+      'tbody','td','tfoot','th','thead','tr','ul'
+    ]);
+
+    // ── Decode percent-encoded URL string ────────────────────────────────────
+    function decodeUrl(url) {
+      try {
+        return decodeURIComponent(url.replace(/\+/g, ' '));
+      } catch {
+        return url;
+      }
+    }
+
+    // ── Decode percent-encoded sequences inside plain text ───────────────────
+    function decodeCyrillicInText(text) {
+      return text.replace(/((?:%[0-9A-Fa-f]{2}|\+)+)/g, match => {
+        try {
+          return decodeURIComponent(match.replace(/\+/g, ' '));
+        } catch {
+          return match;
+        }
+      });
+    }
+
+    // ── Strip & clean a cloned DOM node ─────────────────────────────────────
+    function cleanNode(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        node.textContent = decodeCyrillicInText(node.textContent);
+        return node;
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return null;
+
+      const tag = node.tagName.toLowerCase();
+
+      // Unwrap <span>
+      if (tag === 'span') {
+        const frag = document.createDocumentFragment();
+        Array.from(node.childNodes).forEach(child => {
+          const cleaned = cleanNode(child);
+          if (cleaned) frag.appendChild(cleaned);
+        });
+        return frag;
+      }
+
+      // Strip non-whitelisted attributes
+      const allowed = ATTR_WHITELIST[tag] || [];
+      const attrsToRemove = [];
+      for (const attr of node.attributes) {
+        if (!allowed.includes(attr.name)) attrsToRemove.push(attr.name);
+      }
+      attrsToRemove.forEach(a => node.removeAttribute(a));
+
+      // Decode href
+      if (tag === 'a' && node.hasAttribute('href')) {
+        node.setAttribute('href', decodeUrl(node.getAttribute('href')));
+      }
+
+      // Recurse
+      const childrenToRemove = [];
+      Array.from(node.childNodes).forEach(child => {
+        const cleaned = cleanNode(child);
+        if (cleaned === null) {
+          childrenToRemove.push(child);
+        } else if (cleaned !== child) {
+          node.replaceChild(cleaned, child);
+        }
+      });
+      childrenToRemove.forEach(c => node.removeChild(c));
+
+      // Remove empty non-essential elements
+      if (
+        !VOID_ELEMENTS.has(tag) &&
+        !TABLE_CELL_ELEMENTS.has(tag) &&
+        node.textContent.trim() === '' &&
+        !node.querySelector('img, br, hr, input')
+      ) {
+        return null;
+      }
+
+      return node;
+    }
+
+    // ── Pretty-print a DOM node to indented HTML string ──────────────────────
+    function prettyPrint(node, indent = 0) {
+      const pad = '  '.repeat(indent);
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent.trim();
+        return text ? `${pad}${text}` : '';
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return '';
+
+      const tag = node.tagName.toLowerCase();
+      const isBlock = BLOCK_ELEMENTS.has(tag);
+
+      let attrs = '';
+      for (const attr of node.attributes) {
+        attrs += ` ${attr.name}="${attr.value}"`;
+      }
+
+      if (VOID_ELEMENTS.has(tag)) {
+        return `${pad}<${tag}${attrs}>`;
+      }
+
+      const children = Array.from(node.childNodes);
+      if (children.length === 0) {
+        return `${pad}<${tag}${attrs}></${tag}>`;
+      }
+
+      const allText = children.every(c => c.nodeType === Node.TEXT_NODE);
+
+      if (allText || !isBlock) {
+        const inner = children
+          .map(c => {
+            if (c.nodeType === Node.TEXT_NODE) return c.textContent;
+            return prettyPrint(c, 0).trim();
+          })
+          .join('')
+          .trim();
+        return inner ? `${pad}<${tag}${attrs}>${inner}</${tag}>` : '';
+      }
+
+      const innerLines = children
+        .map(c => prettyPrint(c, indent + 1))
+        .filter(s => s.trim() !== '');
+
+      if (innerLines.length === 0) return '';
+
+      return `${pad}<${tag}${attrs}>\n${innerLines.join('\n')}\n${pad}</${tag}>`;
+    }
+
+    // ── Minify ───────────────────────────────────────────────────────────────
+    function minifyHTML(html) {
+      return html
+        .replace(/\n\s*/g, '')
+        .replace(/>\s+</g, '><')
+        .trim();
+    }
+
+    // ── Markdown conversion ──────────────────────────────────────────────────
+
+    // Detect if a table is "simple":
+    // - no colspan/rowspan on any cell
+    // - all cell content is inline only (no block children)
+    function isSimpleTable(tableNode) {
+      const cells = tableNode.querySelectorAll('td, th');
+      for (const cell of cells) {
+        if (cell.hasAttribute('colspan') || cell.hasAttribute('rowspan')) return false;
+        for (const child of cell.childNodes) {
+          if (child.nodeType === Node.ELEMENT_NODE) {
+            const t = child.tagName.toLowerCase();
+            if (BLOCK_ELEMENTS.has(t) && t !== 'br') return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    // Convert inline content of a node to Markdown string
+    function inlineToMarkdown(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        return node.textContent;
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return '';
+
+      const tag = node.tagName.toLowerCase();
+      const inner = Array.from(node.childNodes).map(inlineToMarkdown).join('');
+
+      switch (tag) {
+        case 'strong':
+        case 'b':
+          return `**${inner}**`;
+        case 'em':
+        case 'i':
+          return `*${inner}*`;
+        case 'a': {
+          const href = node.getAttribute('href') || '';
+          return `[${inner}](${href})`;
+        }
+        case 'code':
+          return `\`${inner}\``;
+        case 'br':
+          return '\n';
+        case 'img': {
+          const alt = node.getAttribute('alt') || '';
+          const src = node.getAttribute('src') || '';
+          return `![${alt}](${src})`;
+        }
+        // bold+italic combined
+        default:
+          return inner;
+      }
+    }
+
+    // Convert a simple GFM table node to Markdown
+    function tableToMarkdown(tableNode) {
+      const rows = Array.from(tableNode.querySelectorAll('tr'));
+      if (rows.length === 0) return '';
+
+      const mdRows = rows.map(row => {
+        const cells = Array.from(row.querySelectorAll('th, td'));
+        return cells.map(cell => {
+          // Collapse inline content to a single line
+          return Array.from(cell.childNodes)
+            .map(inlineToMarkdown)
+            .join('')
+            .replace(/\n/g, ' ')
+            .replace(/\|/g, '\\|')
+            .trim();
+        });
+      });
+
+      const colCount = Math.max(...mdRows.map(r => r.length));
+
+      // Pad rows to same column count
+      mdRows.forEach(row => {
+        while (row.length < colCount) row.push('');
+      });
+
+      const lines = [];
+
+      // First row as header
+      lines.push('| ' + mdRows[0].join(' | ') + ' |');
+      // Separator
+      lines.push('| ' + Array(colCount).fill('---').join(' | ') + ' |');
+      // Body rows
+      for (let i = 1; i < mdRows.length; i++) {
+        lines.push('| ' + mdRows[i].join(' | ') + ' |');
+      }
+
+      return lines.join('\n');
+    }
+
+    // Convert a cleaned DOM node to Markdown (block-level entry point)
+    function nodeToMarkdown(node, listDepth = 0, listType = null) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = node.textContent.trim();
+        return text || '';
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) return '';
+
+      const tag = node.tagName.toLowerCase();
+
+      // ── Headings ──
+      if (/^h[1-6]$/.test(tag)) {
+        const level = parseInt(tag[1]);
+        const prefix = '#'.repeat(level);
+        const text = Array.from(node.childNodes).map(inlineToMarkdown).join('').trim();
+        return `${prefix} ${text}`;
+      }
+
+      // ── Paragraph ──
+      if (tag === 'p') {
+        const text = Array.from(node.childNodes).map(inlineToMarkdown).join('').trim();
+        return text || '';
+      }
+
+      // ── Blockquote ──
+      if (tag === 'blockquote') {
+        const inner = Array.from(node.childNodes)
+          .map(c => nodeToMarkdown(c, listDepth, listType))
+          .filter(Boolean)
+          .join('\n\n');
+        return inner.split('\n').map(line => `> ${line}`).join('\n');
+      }
+
+      // ── Horizontal rule ──
+      if (tag === 'hr') {
+        return '---';
+      }
+
+      // ── Code block ──
+      if (tag === 'pre') {
+        const codeEl = node.querySelector('code');
+        const content = codeEl ? codeEl : node;
+
+        // Try to detect language from class e.g. "language-sql"
+        let lang = '';
+        if (codeEl) {
+          const cls = codeEl.getAttribute('class') || '';
+          const match = cls.match(/language-(\w+)/);
+          if (match) lang = match[1];
+        }
+
+        const text = content.textContent;
+        return `\`\`\`${lang}\n${text}\n\`\`\``;
+      }
+
+      // ── Inline code (orphaned, not inside pre) ──
+      if (tag === 'code') {
+        return `\`${node.textContent}\``;
+      }
+
+      // ── Unordered list ──
+      if (tag === 'ul') {
+        return Array.from(node.childNodes)
+          .filter(c => c.nodeType === Node.ELEMENT_NODE && c.tagName.toLowerCase() === 'li')
+          .map(li => nodeToMarkdown(li, listDepth, 'ul'))
+          .filter(Boolean)
+          .join('\n');
+      }
+
+      // ── Ordered list ──
+      if (tag === 'ol') {
+        let index = parseInt(node.getAttribute('start') || '1', 10);
+        return Array.from(node.childNodes)
+          .filter(c => c.nodeType === Node.ELEMENT_NODE && c.tagName.toLowerCase() === 'li')
+          .map(li => {
+            const result = nodeToMarkdown(li, listDepth, `ol:${index}`);
+            index++;
+            return result;
+          })
+          .filter(Boolean)
+          .join('\n');
+      }
+
+      // ── List item ──
+      if (tag === 'li') {
+        const indent = '  '.repeat(listDepth);
+        const bullet = listType && listType.startsWith('ol:')
+          ? `${listType.split(':')[1]}.`
+          : '-';
+
+        // Separate inline content from nested lists
+        const inlineParts = [];
+        const nestedLists = [];
+
+        Array.from(node.childNodes).forEach(child => {
+          if (child.nodeType === Node.ELEMENT_NODE) {
+            const t = child.tagName.toLowerCase();
+            if (t === 'ul' || t === 'ol') {
+              nestedLists.push(child);
+              return;
+            }
+          }
+          inlineParts.push(inlineToMarkdown(child));
+        });
+
+        const inlineText = inlineParts.join('').trim();
+        const lines = [`${indent}${bullet} ${inlineText}`];
+
+        // Recurse into nested lists with increased depth
+        nestedLists.forEach(nested => {
+          const nestedTag = nested.tagName.toLowerCase();
+          let nestedIndex = parseInt(nested.getAttribute('start') || '1', 10);
+
+          Array.from(nested.childNodes)
+            .filter(c => c.nodeType === Node.ELEMENT_NODE && c.tagName.toLowerCase() === 'li')
+            .forEach(nestedLi => {
+              const nestedType = nestedTag === 'ol' ? `ol:${nestedIndex}` : 'ul';
+              lines.push(nodeToMarkdown(nestedLi, listDepth + 1, nestedType));
+              if (nestedTag === 'ol') nestedIndex++;
+            });
+        });
+
+        return lines.join('\n');
+      }
+
+      // ── Table ──
+      if (tag === 'table') {
+        if (isSimpleTable(node)) {
+          return tableToMarkdown(node);
+        } else {
+          // Fall back to cleaned HTML for complex tables
+          return prettyPrint(node, 0);
+        }
+      }
+
+      // ── Inline formatting at block level (strong, em, a, img) ──
+      if (['strong','b','em','i','a','img'].includes(tag)) {
+        return inlineToMarkdown(node);
+      }
+
+      // ── Div / generic block — unwrap and recurse children ──
+      if (tag === 'div' || tag === 'section' || tag === 'article' ||
+          tag === 'main'  || tag === 'header'  || tag === 'footer') {
+        return Array.from(node.childNodes)
+          .map(c => nodeToMarkdown(c, listDepth, listType))
+          .filter(Boolean)
+          .join('\n\n');
+      }
+
+      // ── Fallback: try inline conversion, else skip ──
+      const inlineFallback = inlineToMarkdown(node).trim();
+      return inlineFallback || '';
+    }
+
+    // ── Convert full cleaned DOM container to Markdown string ────────────────
+    function convertToMarkdown(container) {
+      const blocks = [];
+
+      Array.from(container.childNodes).forEach(child => {
+        const md = nodeToMarkdown(child);
+        if (md.trim()) blocks.push(md.trim());
+      });
+
+      // Join blocks with double newline, collapse 3+ newlines to 2
+      return blocks
+        .join('\n\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    // ── Main pipeline ────────────────────────────────────────────────────────
+    function processHTML(rawHTML) {
+      const container = document.createElement('div');
+      container.innerHTML = rawHTML;
+
+      const toRemove = [];
+      Array.from(container.childNodes).forEach(child => {
+        const cleaned = cleanNode(child);
+        if (cleaned === null) {
+          toRemove.push(child);
+        } else if (cleaned !== child) {
+          container.replaceChild(cleaned, child);
+        }
+      });
+      toRemove.forEach(c => container.removeChild(c));
+
+      const pretty = Array.from(container.childNodes)
+        .map(c => prettyPrint(c, 0))
+        .filter(s => s.trim() !== '')
+        .join('\n');
+
+      const markdown = convertToMarkdown(container);
+
+      return { pretty, markdown };
+    }
+
+    // ── Update output ────────────────────────────────────────────────────────
+    function updateOutput() {
+      const isEmpty = pasteBox.textContent.trim() === '';
+
+      if (isEmpty) {
+        htmlOutput.value = '';
+        minifiedOutput.value = '';
+        markdownOutput.value = '';
+        updatePreview('');
+        setStatus('idle', 'Waiting for input…');
+        charCount.textContent = '';
+        return;
+      }
+
+      const { pretty, markdown } = processHTML(pasteBox.innerHTML);
+      const minified = minifyHTML(pretty);
+
+      htmlOutput.value = pretty;
+      minifiedOutput.value = minified;
+      markdownOutput.value = markdown;
+      updatePreview(pretty);
+      setStatus('active', 'HTML ready');
+      charCount.textContent = `${pretty.length} chars`;
+    }
+
+    function updatePreview(html) {
+      const doc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+      doc.open();
+      doc.write(PREVIEW_STYLES + html);
+      doc.close();
+    }
+
+    function setStatus(state, text) {
+      statusDot.classList.toggle('active', state === 'active');
+      statusText.textContent = text;
+    }
+
+    // ── Tabs ─────────────────────────────────────────────────────────────────
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelector(`.tab-content[data-tab="${tab.dataset.tab}"]`).classList.add('active');
+      });
+    });
+
+    // ── Copy button — copies whichever tab is active ─────────────────────────
+    copyBtn.addEventListener('click', () => {
+      const activeTab = document.querySelector('.tab.active').dataset.tab;
+      let valueToCopy = '';
+
+      if (activeTab === 'html')      valueToCopy = htmlOutput.value;
+      if (activeTab === 'minified')  valueToCopy = minifiedOutput.value;
+      if (activeTab === 'markdown')  valueToCopy = markdownOutput.value;
+      if (activeTab === 'preview')   valueToCopy = htmlOutput.value;
+
+      if (!valueToCopy) return;
+
+      navigator.clipboard.writeText(valueToCopy).then(() => {
+        copyBtn.textContent = '✓ Copied';
+        copyBtn.classList.add('success');
+        setTimeout(() => {
+          copyBtn.textContent = '⎘ Copy';
+          copyBtn.classList.remove('success');
+        }, 1500);
+      });
+    });
+
+    // ── Paste handler ────────────────────────────────────────────────────────
+    pasteBox.addEventListener('paste', (e) => {
+      e.preventDefault();
+
+      const raw = e.clipboardData.getData('text/html')
+        || e.clipboardData.getData('text/plain');
+
+      const sanitized = sanitizePastedHTML(raw);
+
+      const selection = window.getSelection();
+      if (!selection.rangeCount) return;
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+
+      const fragment = range.createContextualFragment(sanitized);
+      range.insertNode(fragment);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+
+      setTimeout(updateOutput);
+    });
+
+    function sanitizePastedHTML(html) {
+      const container = document.createElement('div');
+      container.innerHTML = html;
+
+      container.querySelectorAll('*').forEach(el => {
+        const dangerous = [
+          'position', 'top', 'left', 'right', 'bottom',
+          'z-index', 'transform', 'fixed', 'overflow'
+        ];
+        dangerous.forEach(prop => el.style.removeProperty(prop));
+      });
+
+      return container.innerHTML;
+    }
+
+    // ── Clear ────────────────────────────────────────────────────────────────
+    clearBtn.addEventListener('click', () => {
+      pasteBox.innerHTML = '';
+      htmlOutput.value = '';
+      minifiedOutput.value = '';
+      markdownOutput.value = '';
+      updatePreview('');
+      setStatus('idle', 'Waiting for input…');
+      charCount.textContent = '';
+      pasteBox.focus();
+    });
+
+    pasteBox.focus();
+  </script>
+</body>
+</html>
