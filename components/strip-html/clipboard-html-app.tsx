@@ -2,12 +2,31 @@
 
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { buildPreviewDocument, processHtml, sanitizePastedHtml, type StripHtmlResult } from "@/lib/strip-html";
+import {
+  buildPreviewDocument,
+  processHtml,
+  sanitizePastedHtml,
+  type StripHtmlResult,
+} from "@/lib/strip-html";
 import { cn } from "@/lib/utils";
-import { Check, Clipboard, Eraser, Eye, FileCode2, Minimize2, ScanText } from "lucide-react";
+import {
+  Check,
+  Clipboard,
+  Eraser,
+  Eye,
+  FileCode2,
+  Minimize2,
+  ScanText,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -47,8 +66,13 @@ export function ClipboardHtmlApp() {
     return processHtml(rawHtml);
   }, [mounted, rawHtml]);
 
-  const previewDocument = useMemo(() => buildPreviewDocument(result.pretty), [result.pretty]);
-  const hasContent = rawHtml.replace(/<[^>]+>/g, "").trim().length > 0 || result.pretty.length > 0;
+  const previewDocument = useMemo(
+    () => buildPreviewDocument(result.pretty),
+    [result.pretty],
+  );
+  const hasContent =
+    rawHtml.replace(/<[^>]+>/g, "").trim().length > 0 ||
+    result.pretty.length > 0;
 
   useEffect(() => {
     if (!copied) return;
@@ -60,39 +84,42 @@ export function ClipboardHtmlApp() {
     setRawHtml(pasteBoxRef.current?.innerHTML ?? "");
   }, []);
 
-  const handlePaste = useCallback((event: React.ClipboardEvent<HTMLDivElement>) => {
-    event.preventDefault();
+  const handlePaste = useCallback(
+    (event: React.ClipboardEvent<HTMLDivElement>) => {
+      event.preventDefault();
 
-    const clipboard = event.clipboardData;
-    const html = clipboard.getData("text/html");
-    const text = clipboard.getData("text/plain");
-    const incoming = html || text.replace(/\n/g, "<br>");
-    const sanitized = sanitizePastedHtml(incoming);
+      const clipboard = event.clipboardData;
+      const html = clipboard.getData("text/html");
+      const text = clipboard.getData("text/plain");
+      const incoming = html || text.replace(/\n/g, "<br>");
+      const sanitized = sanitizePastedHtml(incoming);
 
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      if (pasteBoxRef.current) {
-        pasteBoxRef.current.innerHTML += sanitized;
-        syncFromPasteBox();
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) {
+        if (pasteBoxRef.current) {
+          pasteBoxRef.current.innerHTML += sanitized;
+          syncFromPasteBox();
+        }
+        return;
       }
-      return;
-    }
 
-    const range = selection.getRangeAt(0);
-    range.deleteContents();
-    const fragment = range.createContextualFragment(sanitized);
-    const lastNode = fragment.lastChild;
-    range.insertNode(fragment);
+      const range = selection.getRangeAt(0);
+      range.deleteContents();
+      const fragment = range.createContextualFragment(sanitized);
+      const lastNode = fragment.lastChild;
+      range.insertNode(fragment);
 
-    if (lastNode) {
-      range.setStartAfter(lastNode);
-      range.collapse(true);
-      selection.removeAllRanges();
-      selection.addRange(range);
-    }
+      if (lastNode) {
+        range.setStartAfter(lastNode);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
 
-    syncFromPasteBox();
-  }, [syncFromPasteBox]);
+      syncFromPasteBox();
+    },
+    [syncFromPasteBox],
+  );
 
   const handleClear = useCallback(() => {
     if (pasteBoxRef.current) {
@@ -139,13 +166,14 @@ export function ClipboardHtmlApp() {
               Clipboard → HTML
             </h1>
             <p className="max-w-3xl text-sm text-muted-foreground">
-              Paste rich text on the left. Cleaned HTML, minified HTML, Markdown, and live preview appear on the right.
+              Paste rich text on the left. Cleaned HTML, minified HTML,
+              Markdown, and live preview appear on the right.
             </p>
           </div>
           <ThemeToggle />
         </header>
 
-        <div className="grid min-h-0 flex-1 gap-6 lg:grid-cols-2">
+        <div className="grid min-h-0 flex-1 lg:grid-cols-2">
           <Card className="min-h-0 py-0">
             <CardHeader className="border-b py-4">
               <div className="flex items-center justify-between gap-3">
@@ -191,15 +219,28 @@ export function ClipboardHtmlApp() {
                     Switch between cleaned output formats and preview.
                   </CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleCopy} disabled={!hasContent}>
-                  {copied ? <Check className="size-4" /> : <Clipboard className="size-4" />}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopy}
+                  disabled={!hasContent}
+                >
+                  {copied ? (
+                    <Check className="size-4" />
+                  ) : (
+                    <Clipboard className="size-4" />
+                  )}
                   {copied ? "Copied" : "Copy"}
                 </Button>
               </div>
             </CardHeader>
 
             <CardContent className="flex min-h-0 flex-1 flex-col p-4">
-              <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="flex min-h-0 flex-1 flex-col gap-4">
+              <Tabs
+                value={activeTab}
+                onValueChange={(value) => setActiveTab(value as TabValue)}
+                className="flex min-h-0 flex-1 flex-col gap-4"
+              >
                 <TabsList className="grid h-auto grid-cols-2 sm:grid-cols-4">
                   <TabsTrigger value="html">
                     <FileCode2 className="size-4" />
@@ -220,18 +261,36 @@ export function ClipboardHtmlApp() {
                 </TabsList>
 
                 <TabsContent value="html" className="min-h-0 flex-1">
-                  <Textarea value={result.pretty} readOnly spellCheck={false} className="h-full min-h-[22rem] resize-none font-mono text-sm leading-6 lg:min-h-0" />
+                  <Textarea
+                    value={result.pretty}
+                    readOnly
+                    spellCheck={false}
+                    className="h-full min-h-[22rem] resize-none font-mono text-sm leading-6 lg:min-h-0"
+                  />
                 </TabsContent>
 
                 <TabsContent value="minified" className="min-h-0 flex-1">
-                  <Textarea value={result.minified} readOnly spellCheck={false} className="h-full min-h-[22rem] resize-none font-mono text-sm leading-6 lg:min-h-0" />
+                  <Textarea
+                    value={result.minified}
+                    readOnly
+                    spellCheck={false}
+                    className="h-full min-h-[22rem] resize-none font-mono text-sm leading-6 lg:min-h-0"
+                  />
                 </TabsContent>
 
                 <TabsContent value="markdown" className="min-h-0 flex-1">
-                  <Textarea value={result.markdown} readOnly spellCheck={false} className="h-full min-h-[22rem] resize-none font-mono text-sm leading-6 lg:min-h-0" />
+                  <Textarea
+                    value={result.markdown}
+                    readOnly
+                    spellCheck={false}
+                    className="h-full min-h-[22rem] resize-none font-mono text-sm leading-6 lg:min-h-0"
+                  />
                 </TabsContent>
 
-                <TabsContent value="preview" className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-background">
+                <TabsContent
+                  value="preview"
+                  className="min-h-0 flex-1 overflow-hidden rounded-lg border bg-background"
+                >
                   <iframe
                     title="HTML preview"
                     sandbox="allow-same-origin"
