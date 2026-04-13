@@ -1,4 +1,4 @@
-const CACHE_NAME = "strip-html-static-v1";
+const CACHE_NAME = "strip-html-shell-v1";
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, "");
 const URLS_TO_CACHE = [
   `${BASE_PATH}/`,
@@ -9,7 +9,10 @@ const URLS_TO_CACHE = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(URLS_TO_CACHE)).catch(() => undefined),
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(URLS_TO_CACHE))
+      .catch(() => undefined),
   );
   self.skipWaiting();
 });
@@ -19,7 +22,11 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+        Promise.all(
+          keys
+            .filter((key) => key !== CACHE_NAME)
+            .map((key) => caches.delete(key)),
+        ),
       )
       .then(() => self.clients.claim()),
   );
@@ -28,19 +35,15 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
+  const url = new URL(event.request.url);
 
-      return fetch(event.request)
-        .then((response) => {
-          const cloned = response.clone();
-          if (response.ok && event.request.url.startsWith(self.location.origin)) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
-          }
-          return response;
-        })
-        .catch(() => cached);
-    }),
-  );
+  if (url.origin !== self.location.origin) return;
+
+  if (URLS_TO_CACHE.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        return cached || fetch(event.request);
+      }),
+    );
+  }
 });
