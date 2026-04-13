@@ -174,7 +174,7 @@ export function ClipboardHtmlApp() {
         </header>
 
         <div className="grid min-h-0 flex-1 lg:grid-cols-2">
-          <Card className="min-h-0 py-0">
+          <Card className="min-h-0 py-0 border-r-0">
             <CardHeader className="border-b py-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
