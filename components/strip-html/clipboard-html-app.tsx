@@ -158,17 +158,13 @@ export function ClipboardHtmlApp() {
   }, [activeTab, getCopyValue]);
 
   return (
-    <main className="h-screen overflow-hidden bg-background px-4 py-6 sm:px-6 lg:px-8">
-      <div className="flex h-full w-full flex-col gap-6">
+    <main className="h-screen overflow-hidden bg-background p-4">
+      <div className="flex h-full w-full flex-col gap-4">
         <header className="flex shrink-0 items-start justify-between gap-4">
           <div className="flex flex-col gap-2">
             <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
               Clipboard → HTML
             </h1>
-            <p className="max-w-3xl text-sm text-muted-foreground">
-              Paste rich text on the left. Cleaned HTML, minified HTML,
-              Markdown, and live preview appear on the right.
-            </p>
           </div>
           <ThemeToggle />
         </header>
