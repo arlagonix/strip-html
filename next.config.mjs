@@ -10,8 +10,8 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-  basePath: isProd ? "/prompt-forge" : "",
-  assetPrefix: isProd ? "/prompt-forge/" : "",
+  basePath: isProd ? "/strip-html" : "",
+  assetPrefix: isProd ? "/strip-html/" : "",
 };
 
 export default nextConfig;
